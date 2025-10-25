@@ -13,109 +13,26 @@ import { Ball } from '../types/data.types';
 })
 export class App implements OnInit, AfterViewInit {
   // 定数
-  POOL_TABLE_WIDTH = 342;
-  POOL_TABLE_HEIGHT = 604;
-  CANVAS_PADDING = 30;
-
-  // キャンバス
-  private canvas!: fabric.Canvas;
-  public canvasSize = {
-    width: this.POOL_TABLE_WIDTH + 2 * this.CANVAS_PADDING,
-    height: this.POOL_TABLE_HEIGHT + 2 * this.CANVAS_PADDING,
-  };
-
-  
-
-  // 球
-  private balls: Ball[] = [
-    {
-      number: 0,
-      inTable: false,
-      imagePath: 'assets/images/cue_ball.svg',
-    },
-    {
-      number: 1,
-      inTable: false,
-      imagePath: 'assets/images/ball_1.svg',
-    },
-    {
-      number: 2,
-      inTable: false,
-      imagePath: 'assets/images/ball_2.svg',
-    },
-    {
-      number: 3,
-      inTable: false,
-      imagePath: 'assets/images/ball_3.svg',
-    },
-    {
-      number: 4,
-      inTable: false,
-      imagePath: 'assets/images/ball_4.svg',
-    },
-    {
-      number: 5,
-      inTable: false,
-      imagePath: 'assets/images/ball_5.svg',
-    },
-    {
-      number: 6,
-      inTable: false,
-      imagePath: 'assets/images/ball_6.svg',
-    },
-    {
-      number: 7,
-      inTable: false,
-      imagePath: 'assets/images/ball_7.svg',
-    },
-    {
-      number: 8,
-      inTable: false,
-      imagePath: 'assets/images/ball_8.svg',
-    },
-    {
-      number: 9,
-      inTable: false,
-      imagePath: 'assets/images/ball_9.svg',
-    },
-    {
-      number: 10,
-      inTable: false,
-      imagePath: 'assets/images/ball_10.svg',
-    },
-    {
-      number: 11,
-      inTable: false,
-      imagePath: 'assets/images/ball_11.svg',
-    },
-    {
-      number: 12,
-      inTable: false,
-      imagePath: 'assets/images/ball_12.svg',
-    },
-    {
-      number: 13,
-      inTable: false,
-      imagePath: 'assets/images/ball_13.svg',
-    },
-    {
-      number: 14,
-      inTable: false,
-      imagePath: 'assets/images/ball_14.svg',
-    },
-    {
-      number: 15,
-      inTable: false,
-      imagePath: 'assets/images/ball_15.svg',
-    },
-  ];
+  readonly POOL_TABLE_WIDTH = 342;
+  readonly POOL_TABLE_HEIGHT = 604;
+  readonly POOL_TABLE_URL = 'assets/images/pool_table.svg';
+  readonly POOL_TABLE_WITH_GRID_URL = 'assets/images/pool_table_with_grid.svg';
 
   // CanvasのHTML要素
   @ViewChild('poolCanvas', { static: true }) canvasElement!: ElementRef<HTMLCanvasElement>;
+  // キャンバスの画像オブジェクト
+  private canvas!: fabric.Canvas;
+  public canvasSize = {
+    width: this.POOL_TABLE_WIDTH,
+    height: this.POOL_TABLE_HEIGHT,
+  };
 
-  // 描画オブジェクト
+  // ビリヤード台の画像オブジェクト
   private poolTable!: fabric.FabricImage;
   private poolTableWithGrid!: fabric.FabricImage;
+
+  // 球（状態＋画像オブジェクト）リスト
+  private balls: Ball[] = [];
 
   constructor(private dialog: MatDialog) { }
 
@@ -124,36 +41,49 @@ export class App implements OnInit, AfterViewInit {
   }
 
   async ngAfterViewInit() {
-    await this.initFabricCanvas();
+    await this.init();
   }
 
   // 初期化処理
-  async initFabricCanvas(): Promise<void> {
+  private async init(): Promise<void> {
     // Canvasの初期化: HTMLの<canvas id="poolCanvas">要素をFabricのインスタンスに関連付ける
     this.canvas = new fabric.Canvas(this.canvasElement.nativeElement, {
       backgroundColor: 'white',
       selection: true, // 複数のオブジェクト選択を許可
+      // allowTouchScrolling: true,
     });
-    console.log('Fabric Canvasが初期化されました。');
 
-    // ビリヤード台画像のパス
-    const poolTableUrl = 'assets/images/pool_table.svg';
-    const poolTableWithGridUrl = 'assets/images/pool_table_with_grid.svg';
+    // ビリヤード台の描画
+    await this.drawTable();
+    
+    // 球の初期化と描画
+    for (let i = 0; i <= 15; i++) {
+      const imageUrl = i === 0 ? 'assets/images/cue_ball.svg' : `assets/images/ball_${i}.svg`;
+      const image = await this.drawBall(i, imageUrl);
+      this.balls.push({
+        number: i,
+        inTable: false,
+        imageUrl: imageUrl,
+        image: image,
+      });
+    }
+  }
 
+  // ビリヤード台描画メソッド
+  private async drawTable() {
     // ビリヤード台画像オブジェクトの設定値
     const poolTableSetting = {
-      left: this.POOL_TABLE_WIDTH + this.CANVAS_PADDING,
-      top: this.CANVAS_PADDING,
+      left: this.POOL_TABLE_WIDTH,
       scaleX: 0.5,
       scaleY: 0.5,
       angle: 90,
       selectable: false,  // マウスで選択不可にする
       evented: false,     // クリックやドラッグイベントを無視する
-      customType: 'billiardBall'
+      customType: 'billiardBall',
+      visible: true,
     };
     const poolTableWithGridSetting = {
-      left: this.POOL_TABLE_WIDTH + this.CANVAS_PADDING,
-      top: this.CANVAS_PADDING,
+      left: this.POOL_TABLE_WIDTH,
       scaleX: 0.5,
       scaleY: 0.5,
       angle: 90,
@@ -164,14 +94,12 @@ export class App implements OnInit, AfterViewInit {
     };
 
     // ビリヤード台画像をキャンバスに追加
-    this.poolTable = await this.addImageToCanvas(poolTableUrl, false, poolTableSetting);
-    this.poolTableWithGrid = await this.addImageToCanvas(poolTableWithGridUrl, false, poolTableWithGridSetting);
+    this.poolTable = await this.addImageToCanvas(this.POOL_TABLE_URL, false, poolTableSetting);
+    this.poolTableWithGrid = await this.addImageToCanvas(this.POOL_TABLE_WITH_GRID_URL, false, poolTableWithGridSetting);
   }
 
-  // 球追加メソッド（ダイアログで処理するようにする）
-  private async addBall(num: number): Promise<void> {
-
-    const imageUrl = this.getImagePath(num);
+  // 球描画メソッド
+  private async drawBall(num: number, imageUrl: string): Promise<fabric.FabricImage> {
 
     const key = {
       left: this.canvasSize.width / 2 - 18,
@@ -185,14 +113,33 @@ export class App implements OnInit, AfterViewInit {
       lockRotation: true, // 回転をロック
       lockMovementX: false, // X方向の移動は許可 (デフォルト)
       lockMovementY: false, // Y方向の移動は許可 (デフォルト)
+      visible: false, // 非表示
       customType: 'billiardBall'
     };
 
-    await this.addImageToCanvas(imageUrl, true, key);
+    return await this.addImageToCanvas(imageUrl, true, key);
+  }
+
+  // 球の表示・非表示切り替えメソッド
+  private switchBallInTable(num: number) {
+    const ball = this.balls.find((e) => e.number === num);
+    if (ball) {
+      ball.image.set({ 
+        left: this.canvasSize.width / 2 - 18,
+        top: this.canvasSize.height / 2 - 18,
+        visible: !ball.inTable,
+      });
+      ball.inTable = !ball.inTable;
+
+      // キャンバス周りの設定
+      this.canvas.bringObjectToFront(ball.image);
+      this.canvas.setActiveObject(ball.image);
+      this.canvas.renderAll();
+    }
   }
 
   // グリッド切り替えボタンイベント
-  togglePoolTable() {
+  switchPoolTable() {
     this.poolTable.set({ visible: !this.poolTable.visible });
     this.poolTableWithGrid.set({ visible: !this.poolTableWithGrid.visible });
     this.canvas.renderAll();
@@ -237,15 +184,8 @@ export class App implements OnInit, AfterViewInit {
     // ダイアログが閉じられた後の処理を購読
     dialogRef.afterClosed().subscribe(num => {
       console.log('ダイアログが閉じた後');
-      this.addBall(num);
+      this.switchBallInTable(num);
     });
-    // dialogRef.afterClosed().pipe(
-    //   filter(result => result === true) 
-    // ).subscribe(result => {
-    //   // ユーザーが「ダウンロード」を選択した場合の処理
-    //   console.log('ユーザーはダウンロードを選択しました。');
-    //   // this.downloadImage(); // 実際のダウンロードメソッドを呼び出す
-    // });
   }
 
   // キャンバスに画像オブジェクトを追加するメソッド
@@ -277,19 +217,11 @@ export class App implements OnInit, AfterViewInit {
   }
 
   // ダイアログにも同じメソッドあるから共通化した方がいい
-  private getImagePath(num: number) {
-    const imagePath = this.balls.find((e) => e.number === num)?.imagePath;
-    if (imagePath) {
-      return imagePath;
+  private getImageUrl(num: number) {
+    const imageUrl = this.balls.find((e) => e.number === num)?.imageUrl;
+    if (imageUrl) {
+      return imageUrl;
     }
     return '';
-  }
-  // ダイアログにも同じメソッドあるから共通化した方がいい
-  private getInTable(num: number) {
-    const inTable = this.balls.find((e) => e.number === num)?.inTable;
-    if (inTable !== undefined) {
-      return inTable
-    }
-    return false;
   }
 }

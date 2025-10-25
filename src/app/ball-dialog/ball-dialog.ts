@@ -19,10 +19,10 @@ export class BallDialog {
     [13, 14, 15, 0],
   ];
 
-  public getImagePath(num: number) {
-    const imagePath = this.balls.find((e) => e.number === num)?.imagePath;
-    if (imagePath) {
-      return imagePath;
+  public getImageUrl(num: number) {
+    const imageUrl = this.balls.find((e) => e.number === num)?.imageUrl;
+    if (imageUrl) {
+      return imageUrl;
     }
     return '';
   }

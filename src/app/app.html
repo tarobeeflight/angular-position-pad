@@ -2,15 +2,15 @@
 
 
   <!-- キャンバス -->
-  <div class="d-flex justify-content-center mt-5">
+  <div class="d-flex justify-content-center mt-0">
     <canvas #poolCanvas [width]="canvasSize.width" [height]="canvasSize.height"
       style="border: 1px solid #ccc;"></canvas>
   </div>
 
   <!-- アイコンボタン -->
-  <div class="row py-5" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+  <div class="row py-3" style="max-width: 600px; margin-left: auto; margin-right: auto;">
     <div class="col-3 d-flex justify-content-center">
-      <button class="image-button" (click)="togglePoolTable()">
+      <button class="image-button" (click)="switchPoolTable()">
         <img src="assets/images/icon_grid.png" alt="アイコン_グリッド">
       </button>
     </div>
@@ -25,7 +25,7 @@
       </button>
     </div>
     <div class="col-3  d-flex justify-content-center">
-      <button class="image-button" (click)="openDialog()">
+      <button class="image-button">
         <img src="assets/images/icon_setting.png" alt="アイコン_設定">
       </button>
     </div>

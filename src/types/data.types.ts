@@ -1,5 +1,8 @@
+import { FabricImage } from "fabric";
+
 export type Ball = {
-  imagePath: string;
+  number: number;
   inTable: boolean;
-  number: number;  
+  imageUrl: string;
+  image: FabricImage;
 };
