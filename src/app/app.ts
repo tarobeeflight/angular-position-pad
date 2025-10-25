@@ -124,16 +124,21 @@ export class App implements OnInit, AfterViewInit {
   private switchBallInTable(num: number) {
     const ball = this.balls.find((e) => e.number === num);
     if (ball) {
+      const nextState = !ball.inTable;
+      
       ball.image.set({ 
         left: this.canvasSize.width / 2 - 18,
         top: this.canvasSize.height / 2 - 18,
-        visible: !ball.inTable,
+        visible: nextState,
       });
-      ball.inTable = !ball.inTable;
-
-      // キャンバス周りの設定
-      this.canvas.bringObjectToFront(ball.image);
-      this.canvas.setActiveObject(ball.image);
+      ball.inTable = nextState;
+      
+      if (nextState) {
+        this.canvas.bringObjectToFront(ball.image);
+        this.canvas.setActiveObject(ball.image);
+      } else {
+        this.canvas.discardActiveObject(); 
+      }
       this.canvas.renderAll();
     }
   }
@@ -214,14 +219,5 @@ export class App implements OnInit, AfterViewInit {
       console.error('画像のロード中にエラーが発生しました:', error);
       throw error;
     }
-  }
-
-  // ダイアログにも同じメソッドあるから共通化した方がいい
-  private getImageUrl(num: number) {
-    const imageUrl = this.balls.find((e) => e.number === num)?.imageUrl;
-    if (imageUrl) {
-      return imageUrl;
-    }
-    return '';
   }
 }
