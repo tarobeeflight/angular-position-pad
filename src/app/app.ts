@@ -1,30 +1,39 @@
-import { AfterViewInit, Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import * as fabric from 'fabric';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { BallDialog } from './ball-dialog/ball-dialog';
 import { Ball } from '../types/data.types';
+import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-root',
   imports: [MatDialogModule],
+  providers: [DatePipe],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App implements AfterViewInit {
+export class App implements OnInit, AfterViewInit {
   // 定数
-  readonly POOL_TABLE_WIDTH = 342;
-  readonly POOL_TABLE_HEIGHT = 604;
-  readonly POOL_TABLE_URL = 'assets/images/pool_table.svg';
-  readonly POOL_TABLE_WITH_GRID_URL = 'assets/images/pool_table_with_grid.svg';
+  private readonly POOL_TABLE_IMAGE_WIDTH = 684;
+  private readonly POOL_TABLE_IMAGE_HEIGHT = 1208;
+  private readonly BALL_IMAGE_DIAMETER = 26;
+  private readonly ASPECT_RATIO = this.POOL_TABLE_IMAGE_WIDTH / this.POOL_TABLE_IMAGE_HEIGHT;
+  private readonly BALL_DIAMETER_PER_TABLE_WIDTH = 0.05; // 台外径幅に対する球の直径の比率 : 見やすい嘘比率
+  // private readonly BALL_DIAMETER_PER_TABLE_WIDTH = 0.035061; // 台外径幅に対する球の直径の比率
+  private readonly POOL_TABLE_URL = 'assets/images/pool_table.svg';
+  private readonly POOL_TABLE_WITH_GRID_URL = 'assets/images/pool_table_with_grid.svg';
+
+  // 計算されたキャンバスのサイズ
+  public canvasSize = {
+    width: 0,
+    height: 0,
+  };
+  private ballDiameter: number = 0;
 
   // CanvasのHTML要素
   @ViewChild('poolCanvas', { static: true }) canvasElement!: ElementRef<HTMLCanvasElement>;
   // キャンバスの画像オブジェクト
   private canvas!: fabric.Canvas;
-  public canvasSize = {
-    width: this.POOL_TABLE_WIDTH,
-    height: this.POOL_TABLE_HEIGHT,
-  };
 
   // ビリヤード台の画像オブジェクト
   private poolTable!: fabric.FabricImage;
@@ -33,14 +42,54 @@ export class App implements AfterViewInit {
   // 球（状態＋画像オブジェクト）リスト
   private balls: Ball[] = [];
 
-  constructor(private dialog: MatDialog) { }
+  constructor(private dialog: MatDialog, private datePipe: DatePipe) { }
 
   ngOnInit(): void {
-    // canvasSizeを計算
+    this.calculateCanvasSize();
   }
 
   async ngAfterViewInit() {
     await this.init();
+  }
+
+  // ウィンドウのリサイズイベントを捕捉
+  @HostListener('window:resize', ['$event'])
+  onResize(event: any) {
+    this.calculateCanvasSize();
+  }
+
+
+  calculateCanvasSize(): void {
+    // キャンバスサイズの条件（上から優先）
+    // 1. 画像のアスペクト比は変えない
+    // 2. 横幅はウィンドウの幅と同じ。ただし最大は600px
+    // 3. 高さはウィンドウの高さの80%以内
+
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    // 横幅候補
+    let candidateWidth: number = Math.min(windowWidth, 600);
+    // 高さ候補
+    let candidateHeight: number = candidateWidth / this.ASPECT_RATIO;
+    // 高さ制限
+    const maxHeight = windowHeight * 0.8;
+
+    // 高さ制限のチェック
+    if (candidateHeight > maxHeight) {
+      this.canvasSize.height = maxHeight;
+      this.canvasSize.width = this.canvasSize.height * this.ASPECT_RATIO;
+    } else {
+      this.canvasSize.width = candidateWidth;
+      this.canvasSize.height = candidateHeight;
+    }
+
+    // CSSバインディングのために小数点以下を丸める
+    this.canvasSize.width = Math.floor(this.canvasSize.width);
+    this.canvasSize.height = Math.floor(this.canvasSize.height);
+
+    // 球の直径を計算
+    this.ballDiameter = Math.floor(this.canvasSize.width * this.BALL_DIAMETER_PER_TABLE_WIDTH);
   }
 
   // 初期化処理
@@ -74,15 +123,15 @@ export class App implements AfterViewInit {
   private async drawTable() {
     // ビリヤード台画像オブジェクトの設定値
     const poolTableSetting = {
-      scaleX: 0.5,
-      scaleY: 0.5,
+      scaleX: this.canvasSize.width / this.POOL_TABLE_IMAGE_WIDTH,
+      scaleY: this.canvasSize.height / this.POOL_TABLE_IMAGE_HEIGHT,
       selectable: false,  // マウスで選択不可にする
       evented: false,     // クリックやドラッグイベントを無視する
       visible: true,
     };
     const poolTableWithGridSetting = {
-      scaleX: 0.5,
-      scaleY: 0.5,
+      scaleX: this.canvasSize.width / this.POOL_TABLE_IMAGE_WIDTH,
+      scaleY: this.canvasSize.height / this.POOL_TABLE_IMAGE_HEIGHT,
       selectable: false,  // マウスで選択不可にする
       evented: false,     // クリックやドラッグイベントを無視する
       visible: false,
@@ -97,10 +146,11 @@ export class App implements AfterViewInit {
   private async drawBall(num: number, imageUrl: string): Promise<fabric.FabricImage> {
 
     const key = {
-      left: this.canvasSize.width / 2 - 18,
-      top: this.canvasSize.height / 2 - 18,
-      scaleX: 1,
-      scaleY: 1,
+      left: this.canvasSize.width / 2 - this.ballDiameter / 2,
+      top: this.canvasSize.height / 2 - this.ballDiameter / 2,
+      scaleX: this.ballDiameter / this.BALL_IMAGE_DIAMETER,
+      scaleY: this.ballDiameter / this.BALL_IMAGE_DIAMETER,
+      selectable: true,  // マウスで選択可能にする
       hasControls: false, // すべてのコントロールハンドル（拡大・縮小・回転）を非表示にする
       hasBorders: true,  // 選択時の境界線は表示する（任意）
       lockScalingX: true, // X方向の拡大縮小をロック
@@ -108,7 +158,7 @@ export class App implements AfterViewInit {
       lockRotation: true, // 回転をロック
       lockMovementX: false, // X方向の移動は許可 (デフォルト)
       lockMovementY: false, // Y方向の移動は許可 (デフォルト)
-      visible: true, // todo : 非表示
+      visible: false, // 非表示
     };
 
     return await this.addImageToCanvas(imageUrl, true, key);
@@ -119,10 +169,11 @@ export class App implements AfterViewInit {
     const ball = this.balls.find((e) => e.number === num);
     if (ball) {
       const nextState = !ball.inTable;
-      
-      ball.image.set({ 
-        left: this.canvasSize.width / 2 - 18,
-        top: this.canvasSize.height / 2 - 18,
+
+      // 球を中央に設定
+      ball.image.set({
+        left: this.canvasSize.width / 2 - this.ballDiameter / 2,
+      top: this.canvasSize.height / 2 - this.ballDiameter / 2,
         visible: nextState,
       });
       ball.inTable = nextState;
@@ -157,6 +208,8 @@ export class App implements AfterViewInit {
     const dataURL = this.canvas.toDataURL({
       // キャンバスの大きさと出力画像の拡大率
       // todo : 計算必要？PCとspで出力画像のサイズがことなってしまう。
+      // todo : 画質が悪い
+      
       multiplier: 1,
       format: 'png', // ファイル形式
       quality: 1.0   // 画質
@@ -165,7 +218,8 @@ export class App implements AfterViewInit {
     // ダウンロード用の隠しリンク要素を作成
     const a = document.createElement('a');
     a.href = dataURL; // 画像データをリンクのURLに設定
-    a.download = 'billiards_layout.png'; // ダウンロード時のファイル名
+    const formattedDateTime = this.datePipe.transform(new Date(), 'yyyyMMddHHmmss') ?? '';
+    a.download = `billiards_layout_${formattedDateTime}.png`; // ダウンロード時のファイル名
 
     // リンクをクリックしてダウンロードをトリガー
     // DOMに一時的に追加・クリック・削除することで、ダウンロードダイアログを表示させる
