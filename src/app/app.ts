@@ -1,8 +1,7 @@
-import { AfterViewInit, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, ViewChild } from '@angular/core';
 import * as fabric from 'fabric';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { BallDialog } from './ball-dialog/ball-dialog';
-import { filter } from 'rxjs';
 import { Ball } from '../types/data.types';
 
 @Component({
@@ -11,7 +10,7 @@ import { Ball } from '../types/data.types';
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App implements OnInit, AfterViewInit {
+export class App implements AfterViewInit {
   // 定数
   readonly POOL_TABLE_WIDTH = 342;
   readonly POOL_TABLE_HEIGHT = 604;
@@ -50,12 +49,12 @@ export class App implements OnInit, AfterViewInit {
     this.canvas = new fabric.Canvas(this.canvasElement.nativeElement, {
       backgroundColor: 'white',
       selection: true, // 複数のオブジェクト選択を許可
-      // allowTouchScrolling: true,
+      allowTouchScrolling: true,
     });
 
     // ビリヤード台の描画
     await this.drawTable();
-    
+
     // 球の初期化と描画
     for (let i = 0; i <= 15; i++) {
       const imageUrl = i === 0 ? 'assets/images/cue_ball.svg' : `assets/images/ball_${i}.svg`;
@@ -67,30 +66,26 @@ export class App implements OnInit, AfterViewInit {
         image: image,
       });
     }
+
+    this.canvas.renderAll();
   }
 
   // ビリヤード台描画メソッド
   private async drawTable() {
     // ビリヤード台画像オブジェクトの設定値
     const poolTableSetting = {
-      left: this.POOL_TABLE_WIDTH,
       scaleX: 0.5,
       scaleY: 0.5,
-      angle: 90,
       selectable: false,  // マウスで選択不可にする
       evented: false,     // クリックやドラッグイベントを無視する
-      customType: 'billiardBall',
       visible: true,
     };
     const poolTableWithGridSetting = {
-      left: this.POOL_TABLE_WIDTH,
       scaleX: 0.5,
       scaleY: 0.5,
-      angle: 90,
       selectable: false,  // マウスで選択不可にする
       evented: false,     // クリックやドラッグイベントを無視する
       visible: false,
-      customType: 'billiardBall'
     };
 
     // ビリヤード台画像をキャンバスに追加
@@ -113,8 +108,7 @@ export class App implements OnInit, AfterViewInit {
       lockRotation: true, // 回転をロック
       lockMovementX: false, // X方向の移動は許可 (デフォルト)
       lockMovementY: false, // Y方向の移動は許可 (デフォルト)
-      visible: false, // 非表示
-      customType: 'billiardBall'
+      visible: true, // todo : 非表示
     };
 
     return await this.addImageToCanvas(imageUrl, true, key);
@@ -132,12 +126,14 @@ export class App implements OnInit, AfterViewInit {
         visible: nextState,
       });
       ball.inTable = nextState;
-      
+
       if (nextState) {
+        // 表示する場合、球を最前面に移動し、アクティブに設定
         this.canvas.bringObjectToFront(ball.image);
         this.canvas.setActiveObject(ball.image);
       } else {
-        this.canvas.discardActiveObject(); 
+        // 非表示にする場合、アクティブオブジェクトをクリア
+        this.canvas.discardActiveObject();
       }
       this.canvas.renderAll();
     }
@@ -179,7 +175,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   // ダイアログを開くメソッド
-    openDialog(): void {
+  openDialog(): void {
     // ダイアログを開く
     const dialogRef = this.dialog.open(BallDialog, {
       width: '400px',
@@ -197,9 +193,7 @@ export class App implements OnInit, AfterViewInit {
   private async addImageToCanvas(imageUrl: string, isFront: boolean, setting: string | Record<string, any>) {
     try {
       // 画像から描画オブジェクトを生成
-      const img = await fabric.FabricImage.fromURL(imageUrl, {
-        crossOrigin: 'anonymous'
-      });
+      const img = await fabric.FabricImage.fromURL(imageUrl);
 
       // 描画オブジェクトの状態を設定
       img.set(setting);
