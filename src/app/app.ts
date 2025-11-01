@@ -13,17 +13,27 @@ import { DatePipe } from '@angular/common';
   styleUrl: './app.scss'
 })
 export class App implements OnInit, AfterViewInit {
+  // ---------------------------------------------
   // 定数
+  // ---------------------------------------------
+
+  // 素材画像のサイズ
   private readonly POOL_TABLE_IMAGE_WIDTH = 684;
   private readonly POOL_TABLE_IMAGE_HEIGHT = 1208;
   private readonly BALL_IMAGE_DIAMETER = 26;
   private readonly ASPECT_RATIO = this.POOL_TABLE_IMAGE_WIDTH / this.POOL_TABLE_IMAGE_HEIGHT;
   private readonly BALL_DIAMETER_PER_TABLE_WIDTH = 0.05; // 台外径幅に対する球の直径の比率 : 見やすい嘘比率
   // private readonly BALL_DIAMETER_PER_TABLE_WIDTH = 0.035061; // 台外径幅に対する球の直径の比率
+
+  // 出力画像のサイズ
+  private readonly OUTPUT_IMAGE_WIDTH = 1368;
+  private readonly OUTPUT_IMAGE_HEIGHT = 2416;
+
+  // 画像ファイルのURL
   private readonly POOL_TABLE_URL = 'assets/images/pool_table.svg';
   private readonly POOL_TABLE_WITH_GRID_URL = 'assets/images/pool_table_with_grid.svg';
 
-  // 計算されたキャンバスのサイズ
+  // キャンバスサイズ
   public canvasSize = {
     width: 0,
     height: 0,
@@ -68,9 +78,8 @@ export class App implements OnInit, AfterViewInit {
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
-    // 横幅候補
+    // 候補サイズ
     let candidateWidth: number = Math.min(windowWidth, 600);
-    // 高さ候補
     let candidateHeight: number = candidateWidth / this.ASPECT_RATIO;
     // 高さ制限
     const maxHeight = windowHeight * 0.8;
@@ -97,8 +106,9 @@ export class App implements OnInit, AfterViewInit {
     // Canvasの初期化: HTMLの<canvas id="poolCanvas">要素をFabricのインスタンスに関連付ける
     this.canvas = new fabric.Canvas(this.canvasElement.nativeElement, {
       backgroundColor: 'white',
-      selection: true, // 複数のオブジェクト選択を許可
+      selection: false, // 複数のオブジェクト選択を無効化
       allowTouchScrolling: true,
+      devicePixelRatio: 4,
     });
 
     // ビリヤード台の描画
@@ -125,16 +135,16 @@ export class App implements OnInit, AfterViewInit {
     const poolTableSetting = {
       scaleX: this.canvasSize.width / this.POOL_TABLE_IMAGE_WIDTH,
       scaleY: this.canvasSize.height / this.POOL_TABLE_IMAGE_HEIGHT,
-      selectable: false,  // マウスで選択不可にする
-      evented: false,     // クリックやドラッグイベントを無視する
-      visible: true,
+      selectable: false,
+      evented: false,
+      visible: true, // 表示
     };
     const poolTableWithGridSetting = {
       scaleX: this.canvasSize.width / this.POOL_TABLE_IMAGE_WIDTH,
       scaleY: this.canvasSize.height / this.POOL_TABLE_IMAGE_HEIGHT,
-      selectable: false,  // マウスで選択不可にする
-      evented: false,     // クリックやドラッグイベントを無視する
-      visible: false,
+      selectable: false,
+      evented: false,
+      visible: false, // 非表示
     };
 
     // ビリヤード台画像をキャンバスに追加
@@ -150,15 +160,15 @@ export class App implements OnInit, AfterViewInit {
       top: this.canvasSize.height / 2 - this.ballDiameter / 2,
       scaleX: this.ballDiameter / this.BALL_IMAGE_DIAMETER,
       scaleY: this.ballDiameter / this.BALL_IMAGE_DIAMETER,
-      selectable: true,  // マウスで選択可能にする
+      selectable: true,
       hasControls: false, // すべてのコントロールハンドル（拡大・縮小・回転）を非表示にする
-      hasBorders: true,  // 選択時の境界線は表示する（任意）
-      lockScalingX: true, // X方向の拡大縮小をロック
-      lockScalingY: true, // Y方向の拡大縮小をロック
-      lockRotation: true, // 回転をロック
-      lockMovementX: false, // X方向の移動は許可 (デフォルト)
-      lockMovementY: false, // Y方向の移動は許可 (デフォルト)
-      visible: false, // 非表示
+      hasBorders: false,
+      lockScalingX: true,
+      lockScalingY: true,
+      lockRotation: true,
+      lockMovementX: false,
+      lockMovementY: false,
+      visible: false,
     };
 
     return await this.addImageToCanvas(imageUrl, true, key);
@@ -209,17 +219,18 @@ export class App implements OnInit, AfterViewInit {
       // キャンバスの大きさと出力画像の拡大率
       // todo : 計算必要？PCとspで出力画像のサイズがことなってしまう。
       // todo : 画質が悪い
-      
-      multiplier: 1,
+      multiplier: 4,
       format: 'png', // ファイル形式
       quality: 1.0   // 画質
     });
 
     // ダウンロード用の隠しリンク要素を作成
     const a = document.createElement('a');
-    a.href = dataURL; // 画像データをリンクのURLに設定
+    a.href = dataURL;
+    
+    // ファイル名の設定
     const formattedDateTime = this.datePipe.transform(new Date(), 'yyyyMMddHHmmss') ?? '';
-    a.download = `billiards_layout_${formattedDateTime}.png`; // ダウンロード時のファイル名
+    a.download = `positionpad_${formattedDateTime}.png`;
 
     // リンクをクリックしてダウンロードをトリガー
     // DOMに一時的に追加・クリック・削除することで、ダウンロードダイアログを表示させる
